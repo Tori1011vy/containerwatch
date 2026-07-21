@@ -1,0 +1,59 @@
+groups:
+  - name: containerwatch
+    rules:
+      - alert: TargetDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Prometheus target is down"
+          description: "{{ $labels.job }} at {{ $labels.instance }} has been down for more than one minute."
+
+      - alert: HighHostCPU
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High host CPU usage"
+
+      - alert: HighHostMemory
+        expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 > 85
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High host memory usage"
+
+      - alert: LowDiskSpace
+        expr: (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}) * 100 < 15
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low disk space"
+
+      - alert: HighApplicationErrorRate
+        expr: |
+          sum(rate(containerwatch_http_requests_total{status=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(containerwatch_http_requests_total[5m])), 0.001)
+          > 0.05
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Application error rate exceeds 5%"
+
+      - alert: HighApplicationP95Latency
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by(le) (rate(containerwatch_http_request_duration_seconds_bucket[5m]))
+          ) > 0.8
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Application p95 latency exceeds 0.8 seconds"
