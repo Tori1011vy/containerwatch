@@ -1,3 +1,7 @@
+# ContainerWatch: sample workload + monitoring/logging stack.
+# Every service ships stdout/stderr to Amazon CloudWatch Logs through the
+# awslogs driver, so no logging agent is installed on the host.
+
 x-cloudwatch-logging: &cloudwatch-logging
   driver: awslogs
   options:
@@ -11,7 +15,7 @@ services:
     build: ./app
     container_name: sample-app
     ports:
-      - "8000:5000"
+      - "8000:5000" # public
     logging: *cloudwatch-logging
     restart: unless-stopped
 
@@ -21,11 +25,17 @@ services:
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
     volumes:
       - ./monitoring/prometheus:/etc/prometheus:ro
       - prometheus-data:/prometheus
     expose:
-      - "9090"
+      - "9090" # internal only
+    depends_on:
+      - alertmanager
+      - node-exporter
+      - cadvisor
+      - sample-app
     logging: *cloudwatch-logging
     restart: unless-stopped
 
@@ -35,7 +45,7 @@ services:
     volumes:
       - ./monitoring/alertmanager:/etc/alertmanager:ro
     expose:
-      - "9093"
+      - "9093" # internal only
     logging: *cloudwatch-logging
     restart: unless-stopped
 
@@ -47,7 +57,7 @@ services:
     volumes:
       - /:/host:ro,rslave
     expose:
-      - "9100"
+      - "9100" # internal only
     logging: *cloudwatch-logging
     restart: unless-stopped
 
@@ -55,13 +65,16 @@ services:
     image: gcr.io/cadvisor/cadvisor:v0.49.1
     container_name: cadvisor
     privileged: true
+    devices:
+      - /dev/kmsg
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
       - /sys:/sys:ro
       - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk:/dev/disk:ro
     expose:
-      - "8080"
+      - "8080" # internal only
     logging: *cloudwatch-logging
     restart: unless-stopped
 
@@ -69,15 +82,17 @@ services:
     image: grafana/grafana:11.1.0
     container_name: grafana
     ports:
-      - "3000:3000"
+      - "3000:3000" # administrator CIDR only
     environment:
       GF_SECURITY_ADMIN_USER: ${GF_ADMIN_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GF_ADMIN_PASSWORD:-ChangeMe123!}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_ADMIN_PASSWORD:-set-in-dotenv}
       GF_USERS_ALLOW_SIGN_UP: "false"
     volumes:
       - grafana-data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
     logging: *cloudwatch-logging
     restart: unless-stopped
 
