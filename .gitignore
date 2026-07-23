@@ -1,7 +1,13 @@
+# Secrets and local runtime configuration
 .env
+*.pem
+
+# Terraform state and local variable files (the .example file is tracked)
 *.tfstate
 *.tfstate.*
+*.tfvars
+!*.tfvars.example
 .terraform/
-terraform/.terraform.lock.hcl
-*.pem
+crash.log
+
 __pycache__/
