@@ -2,11 +2,22 @@ global:
   resolve_timeout: 5m
 
 route:
-  receiver: default
+  receiver: "default"
   group_by: ["alertname", "severity"]
   group_wait: 30s
   group_interval: 5m
-  repeat_interval: 4h
+  repeat_interval: 3h
+  routes:
+    - matchers: ['severity="critical"']
+      receiver: "critical"
+      repeat_interval: 1h
 
 receivers:
-  - name: default
+  - name: "default"
+  - name: "critical"
+
+# Suppress warning-level noise from a host that already has a critical alert.
+inhibit_rules:
+  - source_matchers: ['severity="critical"']
+    target_matchers: ['severity="warning"']
+    equal: ["instance"]
