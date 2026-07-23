@@ -9,10 +9,12 @@ jobs:
   validate:
     name: Validate configuration
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
       - uses: hashicorp/setup-terraform@v3
+
       - name: Terraform checks
         working-directory: terraform
         run: |
@@ -26,17 +28,21 @@ jobs:
       - name: Prometheus config and alert rule validation
         run: |
           docker run --rm \
+            --entrypoint promtool \
             -v "$PWD/monitoring/prometheus:/etc/prometheus:ro" \
             prom/prometheus:v2.53.0 \
-            promtool check config /etc/prometheus/prometheus.yml
+            check config /etc/prometheus/prometheus.yml
+
           docker run --rm \
+            --entrypoint promtool \
             -v "$PWD/monitoring/prometheus:/etc/prometheus:ro" \
             prom/prometheus:v2.53.0 \
-            promtool check rules /etc/prometheus/alerts.yml
+            check rules /etc/prometheus/alerts.yml
 
       - name: Alertmanager config validation
         run: |
-          docker run --rm --entrypoint amtool \
+          docker run --rm \
+            --entrypoint amtool \
             -v "$PWD/monitoring/alertmanager:/etc/alertmanager:ro" \
             prom/alertmanager:v0.27.0 \
             check-config /etc/alertmanager/alertmanager.yml
@@ -52,6 +58,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: validate
     runs-on: ubuntu-latest
+
     steps:
       - name: Redeploy through SSH
         uses: appleboy/ssh-action@v1.0.3
