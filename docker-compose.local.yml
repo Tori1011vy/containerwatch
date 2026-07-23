@@ -1,0 +1,27 @@
+# Local development override: keeps logs on the workstation instead of
+# requiring AWS credentials for the awslogs driver.
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
+
+x-local-logging: &local-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  sample-app:
+    logging: *local-logging
+  prometheus:
+    logging: *local-logging
+    ports:
+      - "9090:9090"
+  alertmanager:
+    logging: *local-logging
+    ports:
+      - "9093:9093"
+  node-exporter:
+    logging: *local-logging
+  cadvisor:
+    logging: *local-logging
+  grafana:
+    logging: *local-logging
